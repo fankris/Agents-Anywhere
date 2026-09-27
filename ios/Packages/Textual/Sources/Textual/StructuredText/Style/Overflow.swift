@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Controls how content behaves when it overflows horizontally.
-public enum OverflowMode: Hashable {
+public enum OverflowMode: Hashable, Sendable {
   /// Wraps content to fit the available width.
   case wrap
   /// Allows horizontal scrolling.
@@ -9,7 +9,7 @@ public enum OverflowMode: Hashable {
 }
 
 /// Describes the current overflow behavior and available layout metrics.
-public enum OverflowState: Hashable {
+public enum OverflowState: Hashable, Sendable {
   /// Wraps content to fit the available width.
   case wrap
   /// Scrolls horizontally. The container width is provided when available.
