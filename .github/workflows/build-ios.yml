@@ -146,7 +146,12 @@ jobs:
               }
 
               @ViewBuilder
-              public func safeAreaBar<Bar: View>(edge: Edge = .top, spacing: CGFloat = 0, @ViewBuilder content: () -> Bar) -> some View {
+              public func safeAreaBar<Bar: View>(edge: VerticalEdge = .top, spacing: CGFloat? = 0, @ViewBuilder content: () -> Bar) -> some View {
+                  self.safeAreaInset(edge: edge, spacing: spacing, content: content)
+              }
+
+              @ViewBuilder
+              public func safeAreaBar<Bar: View>(edge: HorizontalEdge, spacing: CGFloat? = 0, @ViewBuilder content: () -> Bar) -> some View {
                   self.safeAreaInset(edge: edge, spacing: spacing, content: content)
               }
 
