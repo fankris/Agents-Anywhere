@@ -146,6 +146,11 @@ jobs:
               }
 
               @ViewBuilder
+              public func safeAreaBar<Bar: View>(edge: Edge = .top, spacing: CGFloat = 0, @ViewBuilder content: () -> Bar) -> some View {
+                  self.safeAreaInset(edge: edge, spacing: spacing, content: content)
+              }
+
+              @ViewBuilder
               public func safeAreaBar(_ edge: Edge = .top) -> some View {
                   self
               }
@@ -201,18 +206,22 @@ jobs:
                 // Strip nonisolated modifier on types/extensions (invalid in Swift 6.0)
                 content = content.replace(/\bnonisolated\s+((?:(?:public|private|internal|fileprivate|final)\s+)*(?:struct|enum|class|actor|extension))\b/g, "$1");
 
-                // Remove .sharedBackgroundVisibility
+                // Remove .sharedBackgroundVisibility and .navigationSubtitle
                 content = content.replace(/\.sharedBackgroundVisibility\([^)]*\)/g, "");
+                content = content.replace(/\.navigationSubtitle\([^)]*\)/g, "");
 
                 // Fix HTTPReadRetryPolicy.permitsRetry (@MainActor -> nonisolated)
                 if (full.endsWith("HTTPReadRetryPolicy.swift")) {
                   content = content.replace("@MainActor func permitsRetry", "func permitsRetry");
                 }
 
-                // Fix TimelineGrouping, TimelineTurnActions, NewSessionSubmission actor isolation
+                // Fix TimelineGrouping, TimelineTurnActions, NewSessionSubmission, TimelineRowStructure actor isolation
                 if (full.endsWith("TimelineGrouping.swift")) {
                   content = content.replace("struct ChatTimelineGroup: Identifiable", "@MainActor struct ChatTimelineGroup: Identifiable");
                   content = content.replace("enum TimelineGrouping", "@MainActor enum TimelineGrouping");
+                }
+                if (full.endsWith("TimelineRowStructure.swift")) {
+                  content = content.replace("struct TimelineRowStructure", "@MainActor struct TimelineRowStructure");
                 }
                 if (full.endsWith("TimelineTurnActions.swift")) {
                   content = content.replace("struct TimelineTurnAction", "@MainActor struct TimelineTurnAction");
