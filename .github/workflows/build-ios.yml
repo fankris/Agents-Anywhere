@@ -38,7 +38,122 @@ jobs:
 
       - name: Apply Compatibility Patches
         run: |
-          # 1. Clean up trailing commas in parameter/argument lists for Swift 6.0 compatibility
+          # 1. Add comprehensive AppThemeCompat.swift
+          cat > "ios/Agents Anywhere/Agents Anywhere/App/AppThemeCompat.swift" <<'EOF'
+          import SwiftUI
+
+          // 1. Glass Styles
+          public enum GlassStyle: Sendable {
+              case regular
+              case clear
+              case interactive
+          }
+
+          // 2. Button Roles
+          extension ButtonRole {
+              public static let close = ButtonRole.cancel
+              public static let confirm = ButtonRole.cancel
+          }
+
+          // 3. Shapes
+          extension Shape where Self == RoundedRectangle {
+              public static func rect(cornerRadius: CGFloat) -> RoundedRectangle {
+                  RoundedRectangle(cornerRadius: cornerRadius)
+              }
+          }
+
+          public struct ConcentricRectangle: Shape {
+              public var cornerRadius: CGFloat = 0
+              public init(cornerRadius: CGFloat = 0) {
+                  self.cornerRadius = cornerRadius
+              }
+              public func path(in rect: CGRect) -> Path {
+                  RoundedRectangle(cornerRadius: cornerRadius).path(in: rect)
+              }
+          }
+
+          // 4. ScrollEdgeEffectStyle
+          public struct ScrollEdgeEffectStyle: Sendable, Hashable {
+              public static let soft = ScrollEdgeEffectStyle()
+              public static let hard = ScrollEdgeEffectStyle()
+              public static let none = ScrollEdgeEffectStyle()
+              public init() {}
+          }
+
+          // 5. ScrollAnchorRole
+          public enum ScrollAnchorRole: Sendable {
+              case initialOffset
+              case alignment
+              case sizeChanges
+          }
+
+          // 6. View Extensions
+          extension View {
+              @ViewBuilder
+              public func glassEffect(_ style: GlassStyle = .regular, in shape: some Shape = Rectangle()) -> some View {
+                  self.background(.ultraThinMaterial, in: shape)
+              }
+
+              @ViewBuilder
+              public func glassEffect(_ style: Any = (), in shape: some Shape = Rectangle()) -> some View {
+                  self.background(.ultraThinMaterial, in: shape)
+              }
+
+              @ViewBuilder
+              public func scrollEdgeEffectStyle(_ style: ScrollEdgeEffectStyle = .soft, for edge: Edge.Set = .all) -> some View {
+                  self
+              }
+
+              @ViewBuilder
+              public func scrollEdgeEffectStyle(_ args: Any...) -> some View {
+                  self
+              }
+
+              @ViewBuilder
+              public func defaultScrollAnchor(_ anchor: UnitPoint, for role: ScrollAnchorRole) -> some View {
+                  self.defaultScrollAnchor(anchor)
+              }
+
+              @ViewBuilder
+              public func containerCornerOffset(_ args: Any...) -> some View {
+                  self
+              }
+          }
+
+          // 7. GlassEffectContainer
+          public struct GlassEffectContainer<Content: View>: View {
+              public var spacing: CGFloat?
+              public let content: () -> Content
+
+              public init(spacing: CGFloat? = nil, @ViewBuilder content: @escaping () -> Content) {
+                  self.spacing = spacing
+                  self.content = content
+              }
+
+              public var body: some View {
+                  content()
+              }
+          }
+
+          // 8. Button Styles (.glass, .glassProminent)
+          extension ButtonStyle where Self == BorderedButtonStyle {
+              public static var glass: BorderedButtonStyle { .bordered }
+          }
+
+          extension ButtonStyle where Self == BorderedProminentButtonStyle {
+              public static var glassProminent: BorderedProminentButtonStyle { .borderedProminent }
+          }
+
+          extension PrimitiveButtonStyle where Self == BorderedButtonStyle {
+              public static var glass: BorderedButtonStyle { .bordered }
+          }
+
+          extension PrimitiveButtonStyle where Self == BorderedProminentButtonStyle {
+              public static var glassProminent: BorderedProminentButtonStyle { .borderedProminent }
+          }
+          EOF
+
+          # 2. Run AST/regex cleanups across Swift files
           node -e '
           const fs = require("fs");
           const path = require("path");
@@ -46,42 +161,47 @@ jobs:
           function walk(dir) {
             for (const item of fs.readdirSync(dir)) {
               const full = path.join(dir, item);
-              if (fs.statSync(full).isDirectory()) walk(full);
-              else if (full.endsWith(".swift")) {
-                const orig = fs.readFileSync(full, "utf-8");
-                const patched = orig.replace(/,(\s*\))/g, "$1");
-                if (orig !== patched) {
-                  fs.writeFileSync(full, patched, "utf-8");
-                  console.log("Fixed trailing commas:", full);
+              if (fs.statSync(full).isDirectory()) {
+                walk(full);
+              } else if (full.endsWith(".swift")) {
+                let content = fs.readFileSync(full, "utf-8");
+                const orig = content;
+
+                // Strip trailing commas before closing parenthesis
+                content = content.replace(/,(\s*\))/g, "$1");
+
+                // Strip nonisolated modifier on struct/enum/class declarations (invalid in Swift 6.0)
+                content = content.replace(/\bnonisolated\s+(struct|enum|class)\b/g, "$1");
+
+                // Remove .sharedBackgroundVisibility
+                content = content.replace(/\.sharedBackgroundVisibility\([^)]*\)/g, "");
+
+                // Fix HTTPReadRetryPolicy.permitsRetry (@MainActor -> nonisolated)
+                if (full.endsWith("HTTPReadRetryPolicy.swift")) {
+                  content = content.replace("@MainActor func permitsRetry", "func permitsRetry");
+                }
+
+                // Fix TimelineGrouping, TimelineTurnActions, NewSessionSubmission actor isolation
+                if (full.endsWith("TimelineGrouping.swift")) {
+                  content = content.replace("struct ChatTimelineGroup: Identifiable", "@MainActor struct ChatTimelineGroup: Identifiable");
+                }
+                if (full.endsWith("TimelineTurnActions.swift")) {
+                  content = content.replace("struct TimelineTurnAction", "@MainActor struct TimelineTurnAction");
+                  content = content.replace("enum TimelineTurnActions", "@MainActor enum TimelineTurnActions");
+                }
+                if (full.endsWith("NewSessionSubmission.swift")) {
+                  content = content.replace("struct NewSessionSubmission", "@MainActor struct NewSessionSubmission");
+                }
+
+                if (content !== orig) {
+                  fs.writeFileSync(full, content, "utf-8");
+                  console.log("Patched:", full);
                 }
               }
             }
           }
           walk("ios/Agents Anywhere");
           '
-
-          # 2. Add glassEffect and .rect compat for iOS 18 SwiftUI
-          cat > "ios/Agents Anywhere/Agents Anywhere/App/GlassEffectCompat.swift" <<'EOF'
-          import SwiftUI
-
-          public enum GlassStyle: Sendable {
-              case regular
-              case clear
-          }
-
-          extension Shape where Self == RoundedRectangle {
-              public static func rect(cornerRadius: CGFloat) -> RoundedRectangle {
-                  RoundedRectangle(cornerRadius: cornerRadius)
-              }
-          }
-
-          extension View {
-              @ViewBuilder
-              public func glassEffect(_ style: GlassStyle = .regular, in shape: some Shape = Rectangle()) -> some View {
-                  self.background(.ultraThinMaterial, in: shape)
-              }
-          }
-          EOF
 
       - name: Build Archive (Unsigned)
         run: |
