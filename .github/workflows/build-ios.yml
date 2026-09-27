@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   build:
-    name: Build Unsigned IPA for iOS 17/18
+    name: Build Unsigned IPA for iOS 18
     runs-on: macos-14
 
     steps:
@@ -36,6 +36,53 @@ jobs:
           fi
           xcodebuild -version
 
+      - name: Apply Compatibility Patches
+        run: |
+          # 1. Clean up trailing commas in parameter/argument lists for Swift 6.0 compatibility
+          node -e '
+          const fs = require("fs");
+          const path = require("path");
+
+          function walk(dir) {
+            for (const item of fs.readdirSync(dir)) {
+              const full = path.join(dir, item);
+              if (fs.statSync(full).isDirectory()) walk(full);
+              else if (full.endsWith(".swift")) {
+                const orig = fs.readFileSync(full, "utf-8");
+                const patched = orig.replace(/,(\s*\))/g, "$1");
+                if (orig !== patched) {
+                  fs.writeFileSync(full, patched, "utf-8");
+                  console.log("Fixed trailing commas:", full);
+                }
+              }
+            }
+          }
+          walk("ios/Agents Anywhere");
+          '
+
+          # 2. Add glassEffect and .rect compat for iOS 18 SwiftUI
+          cat > "ios/Agents Anywhere/Agents Anywhere/App/GlassEffectCompat.swift" <<'EOF'
+          import SwiftUI
+
+          public enum GlassStyle: Sendable {
+              case regular
+              case clear
+          }
+
+          extension Shape where Self == RoundedRectangle {
+              public static func rect(cornerRadius: CGFloat) -> RoundedRectangle {
+                  RoundedRectangle(cornerRadius: cornerRadius)
+              }
+          }
+
+          extension View {
+              @ViewBuilder
+              public func glassEffect(_ style: GlassStyle = .regular, in shape: some Shape = Rectangle()) -> some View {
+                  self.background(.ultraThinMaterial, in: shape)
+              }
+          }
+          EOF
+
       - name: Build Archive (Unsigned)
         run: |
           cd "ios/Agents Anywhere"
@@ -56,12 +103,12 @@ jobs:
           mkdir -p "$RUNNER_TEMP/Payload"
           cp -R "$RUNNER_TEMP/AgentsAnywhere.xcarchive/Products/Applications/Agents Anywhere.app" "$RUNNER_TEMP/Payload/"
           cd "$RUNNER_TEMP"
-          zip -r -9 "AgentsAnywhere-iOS17+.ipa" Payload
+          zip -r -9 "AgentsAnywhere-iOS18.ipa" Payload
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: AgentsAnywhere-iOS17+
-          path: ${{ runner.temp }}/AgentsAnywhere-iOS17+.ipa
+          name: AgentsAnywhere-iOS18
+          path: ${{ runner.temp }}/AgentsAnywhere-iOS18.ipa
           retention-days: 14
           if-no-files-found: error
