@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 56;
+	objectVersion = 77;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -84,11 +84,11 @@
 				KnownAssetTags = (
 					New,
 				);
-				LastSwiftUpdateCheck = 1540;
-				LastUpgradeCheck = 1540;
+				LastSwiftUpdateCheck = 1600;
+				LastUpgradeCheck = 1600;
 				TargetAttributes = {
 					000000000000000100000000 = {
-						CreatedOnToolsVersion = 15.4;
+						CreatedOnToolsVersion = 16.0;
 					};
 				};
 			};
@@ -105,7 +105,7 @@
 			packageReferences = (
 				000000000000000300000000 /* XCLocalSwiftPackageReference "../Packages/Textual" */,
 			);
-			preferredProjectObjectVersion = 56;
+			preferredProjectObjectVersion = 77;
 			productRefGroup = 000000000000000000000020 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
