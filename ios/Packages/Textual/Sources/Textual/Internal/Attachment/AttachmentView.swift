@@ -16,9 +16,9 @@ struct AttachmentView: View, Equatable {
   #if TEXTUAL_ENABLE_TEXT_SELECTION && canImport(AppKit)
     @Environment(TextSelectionModel.self) private var textSelectionModel: TextSelectionModel?
   #endif
-  private let attachments: Set<AnyAttachment>
-  private let origin: CGPoint
-  private let layout: Text.Layout
+  nonisolated private let attachments: Set<AnyAttachment>
+  nonisolated private let origin: CGPoint
+  nonisolated private let layout: Text.Layout
 
   init(
     attachments: Set<AnyAttachment>,
@@ -30,7 +30,7 @@ struct AttachmentView: View, Equatable {
     self.layout = layout
   }
 
-  @MainActor static func == (lhs: Self, rhs: Self) -> Bool {
+  nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
     lhs.origin == rhs.origin && lhs.attachments == rhs.attachments && lhs.layout == rhs.layout
   }
 
