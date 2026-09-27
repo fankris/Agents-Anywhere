@@ -30,7 +30,7 @@ struct AttachmentView: View, Equatable {
     self.layout = layout
   }
 
-  nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
+  @MainActor static func == (lhs: Self, rhs: Self) -> Bool {
     lhs.origin == rhs.origin && lhs.attachments == rhs.attachments && lhs.layout == rhs.layout
   }
 
