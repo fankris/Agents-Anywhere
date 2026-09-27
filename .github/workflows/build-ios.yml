@@ -43,10 +43,12 @@ jobs:
           import SwiftUI
 
           // 1. Glass Styles
-          public enum GlassStyle: Sendable {
-              case regular
-              case clear
-              case interactive
+          public struct GlassStyle: Sendable, Hashable {
+              public static let regular = GlassStyle()
+              public static let clear = GlassStyle()
+              public static let interactive = GlassStyle()
+              public init() {}
+              public func interactive() -> GlassStyle { self }
           }
 
           // 2. Button Roles
@@ -55,24 +57,48 @@ jobs:
               public static let confirm = ButtonRole.cancel
           }
 
-          // 3. Shapes
+          // 3. ToolbarItemPlacement
+          extension ToolbarItemPlacement {
+              public static let subtitle = ToolbarItemPlacement.principal
+          }
+
+          // 4. Shapes & Shapes Helpers
           extension Shape where Self == RoundedRectangle {
               public static func rect(cornerRadius: CGFloat) -> RoundedRectangle {
                   RoundedRectangle(cornerRadius: cornerRadius)
               }
           }
 
+          extension Shape where Self == Capsule {
+              public static var capsule: Capsule { Capsule() }
+          }
+
+          extension Shape where Self == Circle {
+              public static var circle: Circle { Circle() }
+          }
+
+          extension Shape where Self == Rectangle {
+              public static var rect: Rectangle { Rectangle() }
+          }
+
+          public struct ConcentricRectangleCorners: Sendable {
+              public static func fixed(_ r: CGFloat) -> ConcentricRectangleCorners { ConcentricRectangleCorners() }
+              public static let concentric = ConcentricRectangleCorners()
+              public init() {}
+          }
+
           public struct ConcentricRectangle: Shape {
-              public var cornerRadius: CGFloat = 0
-              public init(cornerRadius: CGFloat = 0) {
-                  self.cornerRadius = cornerRadius
+              public var corners: ConcentricRectangleCorners = .concentric
+              public init(corners: ConcentricRectangleCorners = .concentric) {
+                  self.corners = corners
               }
+              public init(cornerRadius: CGFloat = 0) {}
               public func path(in rect: CGRect) -> Path {
-                  RoundedRectangle(cornerRadius: cornerRadius).path(in: rect)
+                  RoundedRectangle(cornerRadius: 16).path(in: rect)
               }
           }
 
-          // 4. ScrollEdgeEffectStyle
+          // 5. ScrollEdgeEffectStyle
           public struct ScrollEdgeEffectStyle: Sendable, Hashable {
               public static let soft = ScrollEdgeEffectStyle()
               public static let hard = ScrollEdgeEffectStyle()
@@ -80,14 +106,14 @@ jobs:
               public init() {}
           }
 
-          // 5. ScrollAnchorRole
+          // 6. ScrollAnchorRole
           public enum ScrollAnchorRole: Sendable {
               case initialOffset
               case alignment
               case sizeChanges
           }
 
-          // 6. View Extensions
+          // 7. View Extensions
           extension View {
               @ViewBuilder
               public func glassEffect(_ style: GlassStyle = .regular, in shape: some Shape = Rectangle()) -> some View {
@@ -95,8 +121,8 @@ jobs:
               }
 
               @ViewBuilder
-              public func glassEffect(_ style: Any = (), in shape: some Shape = Rectangle()) -> some View {
-                  self.background(.ultraThinMaterial, in: shape)
+              public func glassEffectID(_ id: AnyHashable, in namespace: Namespace.ID) -> some View {
+                  self
               }
 
               @ViewBuilder
@@ -115,12 +141,22 @@ jobs:
               }
 
               @ViewBuilder
-              public func containerCornerOffset(_ args: Any...) -> some View {
+              public func containerCornerOffset(_ edge: Axis.Set = .horizontal, sizeToFit: Bool = false) -> some View {
+                  self
+              }
+
+              @ViewBuilder
+              public func safeAreaBar(_ edge: Edge = .top) -> some View {
+                  self
+              }
+
+              @ViewBuilder
+              public func safeAreaBar(_ args: Any...) -> some View {
                   self
               }
           }
 
-          // 7. GlassEffectContainer
+          // 8. GlassEffectContainer
           public struct GlassEffectContainer<Content: View>: View {
               public var spacing: CGFloat?
               public let content: () -> Content
@@ -135,15 +171,7 @@ jobs:
               }
           }
 
-          // 8. Button Styles (.glass, .glassProminent)
-          extension ButtonStyle where Self == BorderedButtonStyle {
-              public static var glass: BorderedButtonStyle { .bordered }
-          }
-
-          extension ButtonStyle where Self == BorderedProminentButtonStyle {
-              public static var glassProminent: BorderedProminentButtonStyle { .borderedProminent }
-          }
-
+          // 9. PrimitiveButtonStyle (.glass, .glassProminent)
           extension PrimitiveButtonStyle where Self == BorderedButtonStyle {
               public static var glass: BorderedButtonStyle { .bordered }
           }
@@ -170,8 +198,8 @@ jobs:
                 // Strip trailing commas before closing parenthesis
                 content = content.replace(/,(\s*\))/g, "$1");
 
-                // Strip nonisolated modifier on struct/enum/class declarations (invalid in Swift 6.0)
-                content = content.replace(/\bnonisolated\s+(struct|enum|class)\b/g, "$1");
+                // Strip nonisolated modifier on types/extensions (invalid in Swift 6.0)
+                content = content.replace(/\bnonisolated\s+((?:(?:public|private|internal|fileprivate|final)\s+)*(?:struct|enum|class|actor|extension))\b/g, "$1");
 
                 // Remove .sharedBackgroundVisibility
                 content = content.replace(/\.sharedBackgroundVisibility\([^)]*\)/g, "");
@@ -184,6 +212,7 @@ jobs:
                 // Fix TimelineGrouping, TimelineTurnActions, NewSessionSubmission actor isolation
                 if (full.endsWith("TimelineGrouping.swift")) {
                   content = content.replace("struct ChatTimelineGroup: Identifiable", "@MainActor struct ChatTimelineGroup: Identifiable");
+                  content = content.replace("enum TimelineGrouping", "@MainActor enum TimelineGrouping");
                 }
                 if (full.endsWith("TimelineTurnActions.swift")) {
                   content = content.replace("struct TimelineTurnAction", "@MainActor struct TimelineTurnAction");
