@@ -30,8 +30,6 @@ struct AttachmentView: View {
     self.layout = layout
   }
 
-    }
-
   private struct Placement: Identifiable {
     let line: Int
     let run: Int
