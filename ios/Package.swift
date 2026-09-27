@@ -3,7 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "AgentsAnywhereClient",
-    platforms: [.macOS(.v14), .iOS(.v17)],
+    platforms: [.macOS(.v14), .iOS(.v18)],
     targets: [
         .target(
             name: "ClientCore",
