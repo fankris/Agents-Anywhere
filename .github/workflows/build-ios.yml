@@ -1,0 +1,58 @@
+name: Build Agents Anywhere IPA
+
+on:
+  push:
+    branches: [main, master, develop]
+    paths:
+      - 'ios/**'
+      - '.github/workflows/build-ios.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build Unsigned IPA for iOS 17/18
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Select Xcode Version
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app
+
+      - name: Build Archive (Unsigned)
+        run: |
+          cd "ios/Agents Anywhere"
+          xcodebuild archive \
+            -project "Agents Anywhere.xcodeproj" \
+            -scheme "Agents Anywhere" \
+            -destination "generic/platform=iOS" \
+            -configuration Release \
+            -archivePath "$RUNNER_TEMP/AgentsAnywhere.xcarchive" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_IDENTITY="" \
+            AD_HOC_CODE_SIGNING_ALLOWED=YES \
+            DEVELOPMENT_TEAM=""
+
+      - name: Create IPA Payload
+        run: |
+          mkdir -p "$RUNNER_TEMP/Payload"
+          cp -R "$RUNNER_TEMP/AgentsAnywhere.xcarchive/Products/Applications/Agents Anywhere.app" "$RUNNER_TEMP/Payload/"
+          cd "$RUNNER_TEMP"
+          zip -r -9 "AgentsAnywhere-iOS17+.ipa" Payload
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AgentsAnywhere-iOS17+
+          path: ${{ runner.temp }}/AgentsAnywhere-iOS17+.ipa
+          retention-days: 14
+          if-no-files-found: error
